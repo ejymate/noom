@@ -1,5 +1,5 @@
-import WebSocket from "ws";
 import http from "http";
+import { Server } from "socket.io";
 import express from "express";
 
 const app = express();
@@ -18,10 +18,33 @@ app.get("/*", (_, res) => res.redirect("/"));
 const handleListen = () => console.log(`Listening on http://localhost:3000`);
 // app.listen(3000, handleListen);
 
-// http 내장 함수를 통해 서버를 만들고
-// Websocket 서버에 바이딩 시킨다
-// => 같은 location 과 같은 포트에서 http 와 ws 프로토콜을 사용할 수 있다.
-const server = http.createServer(app); 
+const httpServer = http.createServer(app); 
+const wsServer = new Server(httpServer);
+
+wsServer.on("connection", socket => {
+    socket["nickname"] = "Anonymous";
+    socket.on("enter_room", (roomName, nickname, done) => {
+        socket["nickname"] = nickname;
+        socket.join(roomName);
+        done(roomName);
+        socket.to(roomName).emit("welcome", socket.nickname);
+    });
+    socket.on("disconnecting", () =>{
+        socket.rooms.forEach((room) => socket.to(room).emit("bye", socket.nickname));
+    });
+    socket.on("new_message", (msg, room, done) => {
+        socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
+        done();
+    });
+    socket.on("change_nickname", (newNickname, roomName, callback) => {
+        const oldNickname = socket.nickname;
+        socket["nickname"] = newNickname;
+        socket.to(roomName).emit("new_message", `System Message <br/>" - User ${oldNickname}" change nickname to "${newNickname}"`);
+        callback(oldNickname, newNickname);
+    });
+});
+
+/*
 const wss = new WebSocket.Server({ server });
 
 const sockets = [];
@@ -47,5 +70,6 @@ wss.on("connection", (socket) => {
         }
     });
 });
+*/
 
-server.listen(3000, handleListen);
+httpServer.listen(3000, handleListen);

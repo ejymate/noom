@@ -1,46 +1,75 @@
-var messageList = document.querySelector("ul");
-var nickForm = document.querySelector("#nick");
-var messageForm = document.querySelector("#message");
+const socket = io();
 
-// Frontend의 socket (서버와 연결)
-const socket = new WebSocket(`ws://${window.location.host}`);
+const welcome = document.getElementById("welcome");
+const form = welcome.querySelector("form");
+const room = document.getElementById("room");
 
-socket.addEventListener("open", () => {
-    console.log("Connected to Server");
-});
+room.hidden = true;
 
-socket.addEventListener("message", (message) => {
-    const li = document.createElement("li");
-    li.innerText = message.data;
-    messageList.append(li);
-});
+let current_roomName;
 
-socket.addEventListener("close", () => {
-    console.log("disconnected to Server");
-});
-
-function makeMessage(type, payload) {
-    const msg = {type, payload};
-    return JSON.stringify(msg);
+function addMessage(message) {
+  const ul = room.querySelector("ul");
+  const li = document.createElement("li");
+  li.innerHTML = message;
+  ul.appendChild(li);
 }
 
-function handleNickForm(event) {
-    event.preventDefault();
-
-    const input = nickForm.querySelector("input");
-    const spnNickName = nickForm.querySelector("#spnNickname");
-    socket.send(makeMessage("nickname", input.value));
-    spnNickName.innerText = input.value;
-    input.value = "";
+function handleChangeNicknameSubmit(event) {
+  event.preventDefault();
+  const input = room.querySelector("#name input");
+  socket.emit("change_nickname", input.value, current_roomName, (oldName, newName) => {
+    addMessage(`System Message <br/> - User "${oldName}" change nickname to "${newName}"`);
+  });
 }
 
-function handleForm(event) {
-    event.preventDefault();
-
-    const input = messageForm.querySelector("input");
-    socket.send(makeMessage("new_message", input.value));
-    input.value = "";
+function handleMessageSubmit(event) {
+  event.preventDefault();
+  const input = room.querySelector("#msg input");
+  const myMessage = input.value;
+  socket.emit("new_message", input.value, current_roomName, () => {
+    addMessage(`You: ${myMessage}`);
+  });
+  input.value = "";
 }
 
-nickForm.addEventListener("submit", handleNickForm);
-messageForm.addEventListener("submit", handleForm);
+function showRoom(roomName) {
+  welcome.hidden = true;
+  room.hidden = false;
+  current_roomName = roomName;
+  
+  const roomTitle = room.querySelector("#root-title");
+  roomTitle.innerHTML = `Room: ${roomName}`;
+  
+  const nameForm = room.querySelector("#name");
+  nameForm.querySelector("input").value = form.querySelector("#ipt-nickname").value;
+  const msgForm = room.querySelector("#msg");
+
+
+  nameForm.addEventListener("submit", handleChangeNicknameSubmit);
+  msgForm.addEventListener("submit", handleMessageSubmit);
+}
+
+function handleRoomSubmit(event) {
+  event.preventDefault();
+  const roomName = form.querySelector("#ipt-roomName");
+  const nickname = form.querySelector("#ipt-nickname");
+
+  if(roomName.value === "" && nickname === "") {
+    alert("Room Name & NickName is not blank.");
+    return;
+  }
+  socket.emit("enter_room", roomName.value, nickname.value, showRoom);
+}
+
+form.addEventListener("submit", handleRoomSubmit);
+
+socket.on("welcome", (user) => {
+  addMessage(`${user} joined!`);
+});
+
+socket.on("bye", (user) => {
+  addMessage(`${user} left ㅠㅠ`);
+});
+
+socket.on("new_message", addMessage);

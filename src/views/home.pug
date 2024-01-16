@@ -9,13 +9,21 @@ html(lang="en")
         header 
             h1 Noom
         main 
-            ul
-            form#nick
-                p NickName is 
-                    span#spnNickname Anno
-                input(type="text", placeholder="choose a nickname")
-                button Save
-            form#message
-                input(type="text", placeholder="write the message")
-                button Send
+            div#welcome
+                form
+                    label(for="ipt-roomName") Room Name
+                    input#ipt-roomName(placeholder="enter the room name", required, type="text")
+                    label(for="ipt-nickname") NickName 
+                    input#ipt-nickname(placeholder="nickname", required, type="text")
+                    button Enter Room
+            div#room
+                h3#root-title
+                ul 
+                form#name
+                    input(placeholder="nickname", required, type="text")
+                    button Change    
+                form#msg
+                    input(placeholder="message", required, type="text")
+                    button Send
+        script(src="/socket.io/socket.io.js") 
         script(src="/public/js/app.js")
